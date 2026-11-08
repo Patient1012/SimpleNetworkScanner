@@ -4,14 +4,6 @@
 the local subnet and shows a live, sortable table with addresses, names,
 vendors, models, open ports, latency and inferred device roles.
 
-```
-Network  wlp58s0  192.168.99.0/24  (local 192.168.99.104, gateway 192.168.99.1)
-IP ADDRESS      HOSTNAME       VENDOR                  MODEL                   OPEN PORTS
-192.168.99.1    USG            Ubiquiti Inc            UniFi Security Gateway  22,53,80,443
-192.168.99.20   NAS-1          Synology Incorporated   Synology DiskStation    80,139,443,445,5000,32400
-192.168.99.104  VectorMachine  Intel Corporate         —                       —
-192.168.99.129  HPD86949       Hewlett Packard         HP OfficeJet Pro 6970   80,443,631,8080
-```
 
 ## Features
 
