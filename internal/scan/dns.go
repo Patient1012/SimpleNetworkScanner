@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -28,6 +29,7 @@ func reverseDNSNames(ctx context.Context, gateway netip.Addr, ips []netip.Addr, 
 
 	deadline := time.Now().Add(timeout)
 	out := map[netip.Addr]nameCandidate{}
+	var mu sync.Mutex
 	sem := make(chan struct{}, 24)
 	var done = make(chan struct{}, len(ips))
 
@@ -51,7 +53,9 @@ func reverseDNSNames(ctx context.Context, gateway netip.Addr, ips []netip.Addr, 
 				}
 				name, authoritative := lookupPTR(ctx, server, ip, perQuery)
 				if name != "" {
+					mu.Lock()
 					out[ip] = nameCandidate{name: name, source: "dns", score: 65}
+					mu.Unlock()
 					return
 				}
 				// A definitive answer from the first server (usually the
@@ -62,12 +66,9 @@ func reverseDNSNames(ctx context.Context, gateway netip.Addr, ips []netip.Addr, 
 			}
 		}(ip)
 	}
+	// Wait for every goroutine: returning early would race with writers.
 	for range ips {
-		select {
-		case <-done:
-		case <-ctx.Done():
-			return out
-		}
+		<-done
 	}
 	return out
 }
