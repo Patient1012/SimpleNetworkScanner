@@ -20,6 +20,7 @@ type Record struct {
 	MAC       string    `json:"mac,omitempty"`
 	Name      string    `json:"name,omitempty"`
 	Vendor    string    `json:"vendor,omitempty"`
+	Model     string    `json:"model,omitempty"`
 	FirstSeen time.Time `json:"first_seen"`
 	LastSeen  time.Time `json:"last_seen"`
 }
@@ -103,6 +104,9 @@ func (h *History) Apply(d *scan.Device) {
 	if d.Vendor == "" {
 		d.Vendor = rec.Vendor
 	}
+	if d.Model == "" {
+		d.Model = rec.Model
+	}
 	if !d.LastSeen.After(rec.LastSeen) {
 		d.LastSeen = rec.LastSeen
 	}
@@ -138,11 +142,16 @@ func (h *History) Update(devices []scan.Device) {
 		if vendor == "" {
 			vendor = old.Vendor
 		}
+		model := d.Model
+		if model == "" {
+			model = old.Model
+		}
 		rec := Record{
 			IP:        d.IP.String(),
 			MAC:       d.MAC,
 			Name:      name,
 			Vendor:    vendor,
+			Model:     model,
 			FirstSeen: first,
 			LastSeen:  last,
 		}

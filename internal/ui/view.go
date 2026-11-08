@@ -22,9 +22,10 @@ type column struct {
 }
 
 var allColumns = []column{
-	{key: SortIP, title: "IP", width: 15},
+	{key: SortIP, title: "IP ADDRESS", width: 15},
 	{key: SortName, title: "HOSTNAME", flex: true, min: 10},
 	{key: SortVendor, title: "VENDOR", flex: true, min: 8},
+	{key: SortModel, title: "MODEL", flex: true, min: 8},
 	{key: SortMAC, title: "MAC", width: 17},
 	{key: SortPorts, title: "OPEN PORTS", flex: true, min: 7},
 	{key: SortRTT, title: "RTT", width: 7, right: true},
@@ -79,6 +80,8 @@ func layoutColumns(w int) []column {
 		switch {
 		case containsCol(cols, SortVendor):
 			drop(SortVendor)
+		case containsCol(cols, SortModel):
+			drop(SortModel)
 		case containsCol(cols, SortPorts):
 			drop(SortPorts)
 		case containsCol(cols, SortMAC):
@@ -111,11 +114,14 @@ allocate:
 	for i, c := range cols {
 		if c.flex {
 			flex = append(flex, i)
-			if c.key == SortName {
+			switch c.key {
+			case SortName:
 				weightTotal += 5
-			} else if c.key == SortPorts {
+			case SortModel:
+				weightTotal += 4
+			case SortPorts:
 				weightTotal += 3
-			} else {
+			default:
 				weightTotal += 2
 			}
 		}
@@ -128,9 +134,12 @@ allocate:
 	for n, idx := range flex {
 		c := &cols[idx]
 		weight := 2
-		if c.key == SortName {
+		switch c.key {
+		case SortName:
 			weight = 5
-		} else if c.key == SortPorts {
+		case SortModel:
+			weight = 4
+		case SortPorts:
 			weight = 3
 		}
 		if n == len(flex)-1 {
@@ -346,6 +355,12 @@ func (m *Model) renderCell(d *scan.Device, c column, selected bool) string {
 		}
 	case SortVendor:
 		value = d.Vendor
+		style = m.styles.muted
+		if value == "" {
+			value = "—"
+		}
+	case SortModel:
+		value = d.Model
 		style = m.styles.muted
 		if value == "" {
 			value = "—"

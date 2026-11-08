@@ -63,6 +63,10 @@ func TestIntegrationScan(t *testing.T) {
 		if name == "" {
 			name = "—"
 		}
-		t.Logf("  %-15s %-28s %-17s %v", d.IP, name, d.MAC, d.Ports)
+		model := d.Model
+		if model == "" {
+			model = "—"
+		}
+		t.Logf("  %-15s %-24s %-17s %-24s %v", d.IP, name, d.MAC, model, d.Ports)
 	}
 }

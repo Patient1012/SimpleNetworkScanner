@@ -37,17 +37,19 @@ type nameCandidate struct {
 }
 
 type mdnsRecords struct {
-	a        map[string]netip.Addr // hostname -> IPv4
-	srv      map[string]string     // instance -> target
-	instance map[string]string     // instance -> friendly name
-	reverse  map[netip.Addr]string // IP -> PTR hostname
+	a        map[string]netip.Addr        // hostname -> IPv4
+	srv      map[string]string            // instance -> target
+	instance map[string]string            // instance -> friendly name
+	reverse  map[netip.Addr]string        // IP -> PTR hostname
+	txt      map[string]map[string]string // record owner -> TXT keys
 }
 
 // mdnsNames performs a short mDNS/Bonjour discovery using reverse PTR queries
-// for the discovered hosts and PTR queries for common service types.
-func mdnsNames(ctx context.Context, iface *net.Interface, hosts []netip.Addr, timeout time.Duration) map[netip.Addr]nameCandidate {
+// for the discovered hosts and PTR queries for common service types. It
+// returns names and any model information advertised in TXT records.
+func mdnsNames(ctx context.Context, iface *net.Interface, hosts []netip.Addr, timeout time.Duration) (map[netip.Addr]nameCandidate, map[netip.Addr]modelCandidate) {
 	if len(hosts) == 0 {
-		return nil
+		return nil, nil
 	}
 	group := &net.UDPAddr{IP: net.IPv4(224, 0, 0, 251), Port: 5353}
 
@@ -61,7 +63,7 @@ func mdnsNames(ctx context.Context, iface *net.Interface, hosts []netip.Addr, ti
 	// Unicast socket sends queries and also catches unicast (QU) replies.
 	uc, err := net.ListenUDP("udp4", &net.UDPAddr{})
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	defer uc.Close()
 	_ = uc.SetReadBuffer(1 << 20)
@@ -117,18 +119,19 @@ func mdnsNames(ctx context.Context, iface *net.Interface, hosts []netip.Addr, ti
 		srv:      map[string]string{},
 		instance: map[string]string{},
 		reverse:  map[netip.Addr]string{},
+		txt:      map[string]map[string]string{},
 	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
-			return mdnsResults(records)
+			return mdnsResults(records), mdnsModels(records)
 		case pkt := <-packets:
 			parseMDNS(pkt, &records)
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
-	return mdnsResults(records)
+	return mdnsResults(records), mdnsModels(records)
 }
 
 func buildMDNSQuery(name string, qtype dnsmessage.Type, unicast bool) ([]byte, error) {
@@ -191,6 +194,21 @@ func parseMDNS(pkt []byte, rec *mdnsRecords) {
 				}
 			case *dnsmessage.SRVResource:
 				rec.srv[name] = normalizeDNSName(b.Target.String())
+			case *dnsmessage.TXTResource:
+				fields := map[string]string{}
+				for _, entry := range b.TXT {
+					key, value, ok := strings.Cut(entry, "=")
+					if !ok || strings.TrimSpace(key) == "" {
+						continue
+					}
+					fields[strings.ToLower(strings.TrimSpace(key))] = strings.TrimSpace(value)
+				}
+				if len(fields) > 0 {
+					if rec.txt == nil {
+						rec.txt = map[string]map[string]string{}
+					}
+					rec.txt[name] = fields
+				}
 			}
 		}
 	}
@@ -229,6 +247,41 @@ func mdnsResults(rec mdnsRecords) map[netip.Addr]nameCandidate {
 		add(ip, host, "mdns", 55)
 	}
 	return out
+}
+
+// mdnsModels extracts model names from TXT records such as those advertised by
+// _device-info._tcp and printer services.
+func mdnsModels(rec mdnsRecords) map[netip.Addr]modelCandidate {
+	out := map[netip.Addr]modelCandidate{}
+	add := func(ip netip.Addr, owner string, score int) {
+		model := mdnsTXTModel(rec.txt[owner])
+		if !ip.IsValid() || model == "" {
+			return
+		}
+		if prev, ok := out[ip]; ok && prev.score >= score {
+			return
+		}
+		out[ip] = modelCandidate{model: model, score: score}
+	}
+
+	for host, ip := range rec.a {
+		add(ip, host, 70)
+	}
+	for instance, target := range rec.srv {
+		if ip, ok := rec.a[target]; ok {
+			add(ip, instance, 72)
+		}
+	}
+	return out
+}
+
+func mdnsTXTModel(txt map[string]string) string {
+	for _, key := range []string{"model", "modelname", "product", "productname", "md", "mdl", "ty"} {
+		if model := cleanModel(txt[key]); model != "" {
+			return model
+		}
+	}
+	return ""
 }
 
 func reverseARPA(ip netip.Addr) string {

@@ -23,6 +23,7 @@ func TestHistoryRoundTrip(t *testing.T) {
 		MAC:       "aa:bb:cc:dd:ee:ff",
 		Hostname:  "laptop",
 		Vendor:    "Example Corp",
+		Model:     "ExampleBook 14",
 		FirstSeen: first,
 		LastSeen:  first,
 		Online:    true,
@@ -41,15 +42,18 @@ func TestHistoryRoundTrip(t *testing.T) {
 		t.Fatalf("records=%d", len(loaded.Records))
 	}
 	rec, ok := loaded.Lookup("192.168.1.10", "aa:bb:cc:dd:ee:ff")
-	if !ok || rec.Name != "laptop" || !rec.FirstSeen.Equal(first) {
+	if !ok || rec.Name != "laptop" || rec.Model != "ExampleBook 14" || !rec.FirstSeen.Equal(first) {
 		t.Fatalf("record=%#v ok=%v", rec, ok)
 	}
 
-	// A later scan without a name should keep the remembered name.
+	// A later scan without a name or model should keep the remembered values.
 	applied := scan.Device{IP: netip.MustParseAddr("192.168.1.10"), MAC: "aa:bb:cc:dd:ee:ff"}
 	loaded.Apply(&applied)
 	if applied.Hostname != "laptop" || applied.NameSource != "remembered" {
 		t.Fatalf("applied=%#v", applied)
+	}
+	if applied.Model != "ExampleBook 14" {
+		t.Fatalf("model not applied: %#v", applied)
 	}
 }
 

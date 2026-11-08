@@ -2,15 +2,15 @@
 
 `netscan` is a terminal network scanner for Linux. It discovers every device on
 the local subnet and shows a live, sortable table with addresses, names,
-vendors, open ports, latency and inferred device roles.
+vendors, models, open ports, latency and inferred device roles.
 
 ```
 Network  wlp58s0  192.168.99.0/24  (local 192.168.99.104, gateway 192.168.99.1)
-IP              HOSTNAME       MAC                VENDOR                  OPEN PORTS                 RTT    TYPE
-192.168.99.1    USG            e0:63:da:26:cf:a7  Ubiquiti Inc            22,53,80,443               11ms   Gateway / router
-192.168.99.20   NAS-1          00:11:32:98:9f:65  Synology Incorporated   80,139,443,445,5000,32400  11ms   NAS · SMB file server
-192.168.99.104  VectorMachine  00:28:f8:6d:1a:9b  Intel Corporate         —                          <1ms   This device
-192.168.99.129  HPD86949       10:62:e5:d8:69:49  Hewlett Packard         80,443,631,8080            5.7ms  Printer · Web server
+IP ADDRESS      HOSTNAME       VENDOR                  MODEL                   OPEN PORTS
+192.168.99.1    USG            Ubiquiti Inc            UniFi Security Gateway  22,53,80,443
+192.168.99.20   NAS-1          Synology Incorporated   Synology DiskStation    80,139,443,445,5000,32400
+192.168.99.104  VectorMachine  Intel Corporate         —                       —
+192.168.99.129  HPD86949       Hewlett Packard         HP OfficeJet Pro 6970   80,443,631,8080
 ```
 
 ## Features
@@ -19,6 +19,8 @@ IP              HOSTNAME       MAC                VENDOR                  OPEN P
   third source, so hosts that ignore ping still show up.
 - Device names from DHCP leases, router/local reverse DNS, mDNS/Bonjour,
   NetBIOS and the local hostname, merged by confidence.
+- Device models from UPnP/SSDP, mDNS TXT records and web-interface titles or
+  server headers.
 - Offline MAC vendor lookup from a bundled IEEE OUI database.
 - Open-port scan of a curated set of common ports.
 - Inferred roles such as gateway, NAS, printer, smart-home hub, Proxmox host,
@@ -77,7 +79,7 @@ netscan --ports 22,80,443,8000-8100
 | `p` | Pause or resume auto-refresh |
 | `o` | Show or hide offline devices |
 | `s` / `S` | Sort by next column / reverse order |
-| `/` | Filter by IP, hostname, MAC or vendor |
+| `/` | Filter by IP, hostname, MAC, vendor or model |
 | `?` / `h` | Help |
 | `q` / `ctrl+c` | Quit |
 
@@ -108,8 +110,10 @@ netscan --ports 22,80,443,8000-8100
 3. **Name resolution** combines DHCP lease files, reverse DNS queried directly
    from the gateway and `/etc/resolv.conf` nameservers, mDNS/Bonjour, NetBIOS
    node-status queries and the local hostname. Higher-confidence sources win.
-4. **Enrichment** maps MAC prefixes to vendors from the embedded OUI database
-   and infers a role from ports, vendor and hostname.
+4. **Enrichment** maps MAC prefixes to vendors from the embedded OUI database,
+   asks UPnP/SSDP and mDNS for model details, falls back to web-interface
+   titles and server headers, and infers a role from ports, vendor and
+   hostname.
 
 History is stored at `$XDG_STATE_HOME/netscan/history.json`, falling back to
 `~/.local/state/netscan/history.json`. Delete that file to forget all devices.
@@ -121,5 +125,7 @@ History is stored at `$XDG_STATE_HOME/netscan/history.json`, falling back to
 - mDNS discovery requires UDP 5353 to be reachable. If Avahi is running it may
   already own the socket; the scanner still tries unicast and multicast and
   simply skips mDNS when it gets no replies.
+- Model discovery is best effort. Devices that expose UPnP, mDNS TXT records or
+  a web interface usually report a model; devices with none of those show `—`.
 - The relay/proxy and VPN interfaces can make "the local subnet" ambiguous; use
   `--iface` or `--subnet` to be explicit.

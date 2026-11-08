@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-// resolveNames combines DHCP leases, mDNS, NetBIOS and reverse DNS into the
-// best available name for each host.
-func resolveNames(ctx context.Context, iface *net.Interface, gateway netip.Addr, devices []Device, timeout time.Duration, disableMDNS, disableNBNS bool) map[netip.Addr]nameCandidate {
+// resolveNames combines DHCP leases, mDNS, NetBIOS, reverse DNS and UPnP into
+// the best available name and model for each host.
+func resolveNames(ctx context.Context, iface *net.Interface, gateway netip.Addr, devices []Device, timeout time.Duration, disableMDNS, disableNBNS bool) (map[netip.Addr]nameCandidate, map[netip.Addr]string) {
 	if len(devices) == 0 {
-		return nil
+		return nil, nil
 	}
 	ips := make([]netip.Addr, 0, len(devices))
 	for _, d := range devices {
@@ -25,6 +25,14 @@ func resolveNames(ctx context.Context, iface *net.Interface, gateway netip.Addr,
 		for ip, c := range extra {
 			if prev, ok := candidates[ip]; !ok || c.score > prev.score {
 				candidates[ip] = c
+			}
+		}
+	}
+	models := map[netip.Addr]modelCandidate{}
+	mergeModels := func(extra map[netip.Addr]modelCandidate) {
+		for ip, c := range extra {
+			if prev, ok := models[ip]; !ok || c.score > prev.score {
+				models[ip] = c
 			}
 		}
 	}
@@ -55,12 +63,34 @@ func resolveNames(ctx context.Context, iface *net.Interface, gateway netip.Addr,
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			result := mdnsNames(ctx, iface, ips, timeout)
+			result, foundModels := mdnsNames(ctx, iface, ips, timeout)
 			mu.Lock()
 			defer mu.Unlock()
 			merge(result)
+			mergeModels(foundModels)
 		}()
 	}
+
+	// UPnP device descriptions usually contain an explicit model name.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		foundModels := discoverSSDPModels(ctx, ips, timeout)
+		mu.Lock()
+		defer mu.Unlock()
+		mergeModels(foundModels)
+	}()
+
+	// Web interfaces are a useful fallback for appliances without UPnP or
+	// mDNS, such as printers, routers and NAS boxes.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		foundModels := discoverHTTPModels(ctx, devices, timeout)
+		mu.Lock()
+		defer mu.Unlock()
+		mergeModels(foundModels)
+	}()
 
 	if !disableNBNS {
 		wg.Add(1)
@@ -141,7 +171,13 @@ func resolveNames(ctx context.Context, iface *net.Interface, gateway netip.Addr,
 			}
 		}
 	}
-	return candidates
+	modelNames := make(map[netip.Addr]string, len(models))
+	for ip, c := range models {
+		if c.model != "" {
+			modelNames[ip] = c.model
+		}
+	}
+	return candidates, modelNames
 }
 
 func mergeOne(m map[netip.Addr]nameCandidate, ip netip.Addr, c nameCandidate) {

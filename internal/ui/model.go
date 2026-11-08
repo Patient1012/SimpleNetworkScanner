@@ -79,6 +79,7 @@ const (
 	SortIP SortKey = iota
 	SortName
 	SortVendor
+	SortModel
 	SortMAC
 	SortPorts
 	SortRTT
@@ -93,6 +94,8 @@ func (k SortKey) String() string {
 		return "hostname"
 	case SortVendor:
 		return "vendor"
+	case SortModel:
+		return "model"
 	case SortMAC:
 		return "MAC"
 	case SortPorts:
@@ -143,7 +146,7 @@ func New(cfg Config) *Model {
 	)
 
 	m.filter = textinput.New()
-	m.filter.Placeholder = "IP, hostname, MAC or vendor"
+	m.filter.Placeholder = "IP, hostname, MAC, vendor or model"
 	m.filter.Prompt = "/ "
 	m.filter.CharLimit = 80
 	m.filter.Width = 44
@@ -162,6 +165,7 @@ func New(cfg Config) *Model {
 			MAC:        rec.MAC,
 			Hostname:   rec.Name,
 			Vendor:     rec.Vendor,
+			Model:      rec.Model,
 			Online:     false,
 			FirstSeen:  rec.FirstSeen,
 			LastSeen:   rec.LastSeen,
@@ -395,6 +399,9 @@ func (m *Model) mergeDevice(d scan.Device) {
 	}
 	if d.Vendor != "" {
 		cur.Vendor = d.Vendor
+	}
+	if d.Model != "" {
+		cur.Model = d.Model
 	}
 	if d.Hostname != "" {
 		cur.Hostname = d.Hostname
@@ -653,7 +660,7 @@ func (m *Model) recomputeRows(keepSelection bool) {
 	desc := m.sortDesc
 	sort.SliceStable(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
-		if key == SortName || key == SortVendor {
+		if key == SortName || key == SortVendor || key == SortModel {
 			af, bf := fieldValue(a, key) != "", fieldValue(b, key) != ""
 			if af != bf {
 				return af // empty values always last
@@ -720,6 +727,8 @@ func fieldValue(d *scan.Device, key SortKey) string {
 		return d.Hostname
 	case SortVendor:
 		return d.Vendor
+	case SortModel:
+		return d.Model
 	case SortMAC:
 		return d.MAC
 	}
@@ -740,6 +749,8 @@ func compareDevices(a, b *scan.Device, key SortKey) int {
 		return strings.Compare(strings.ToLower(a.Hostname), strings.ToLower(b.Hostname))
 	case SortVendor:
 		return strings.Compare(strings.ToLower(a.Vendor), strings.ToLower(b.Vendor))
+	case SortModel:
+		return strings.Compare(strings.ToLower(a.Model), strings.ToLower(b.Model))
 	case SortMAC:
 		return strings.Compare(a.MAC, b.MAC)
 	case SortPorts:
@@ -786,7 +797,7 @@ func statusRank(d *scan.Device) int {
 
 func deviceMatches(d *scan.Device, term string) bool {
 	parts := []string{
-		d.IP.String(), d.Hostname, d.MAC, d.Vendor,
+		d.IP.String(), d.Hostname, d.MAC, d.Vendor, d.Model,
 		d.NameSource, statusText(d), scan.DescribeRole(*d),
 		formatPortsCompact(d.Ports),
 	}

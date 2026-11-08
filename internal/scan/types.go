@@ -62,6 +62,7 @@ type Device struct {
 	MAC      string
 	Hostname string
 	Vendor   string
+	Model    string
 	Ports    []int
 	RTT      time.Duration
 

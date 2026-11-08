@@ -28,22 +28,25 @@ func testModel() *Model {
 	add := func(d *scan.Device) { m.devices[d.IP.String()] = d }
 	add(&scan.Device{
 		IP: netip.MustParseAddr("192.168.1.1"), MAC: "aa:bb:cc:dd:ee:01",
-		Hostname: "router", Vendor: "Ubiquiti Inc", Ports: []int{22, 53, 80, 443},
-		RTT: 2 * time.Millisecond, Online: true, Gateway: true,
+		Hostname: "router", Vendor: "Ubiquiti Inc", Model: "UniFi Security Gateway",
+		Ports: []int{22, 53, 80, 443},
+		RTT:   2 * time.Millisecond, Online: true, Gateway: true,
 		FirstSeen: time.Now().Add(-48 * time.Hour), LastSeen: time.Now(),
 	})
 	add(&scan.Device{
 		IP: netip.MustParseAddr("192.168.1.2"), MAC: "aa:bb:cc:dd:ee:02",
 		Hostname: "this-is-a-very-long-hostname-for-truncation.localdomain",
 		Vendor:   "A Very Long Vendor Name Incorporated Limited",
+		Model:    "A Very Long Device Model Name With Many Words",
 		Ports:    []int{80, 139, 443, 445, 5000, 8000, 8008, 8080, 8443, 9000, 32400},
 		RTT:      120 * time.Millisecond, Online: true,
 		FirstSeen: time.Now().Add(-24 * time.Hour), LastSeen: time.Now(),
 	})
 	add(&scan.Device{
 		IP: netip.MustParseAddr("192.168.1.3"), MAC: "aa:bb:cc:dd:ee:03",
-		Hostname: "printer", Vendor: "Hewlett Packard", Ports: []int{80, 631, 9100},
-		RTT: time.Millisecond, Online: true,
+		Hostname: "printer", Vendor: "Hewlett Packard", Model: "HP OfficeJet Pro 6970",
+		Ports: []int{80, 631, 9100},
+		RTT:   time.Millisecond, Online: true,
 	})
 	add(&scan.Device{
 		IP: netip.MustParseAddr("192.168.1.4"), MAC: "aa:bb:cc:dd:ee:04",
@@ -133,6 +136,12 @@ func TestFilteringAndSorting(t *testing.T) {
 		t.Fatalf("filter rows=%v", m.rows)
 	}
 
+	m.filterValue = "security gateway"
+	m.recomputeRows(false)
+	if len(m.rows) != 1 || m.rows[0].Hostname != "router" {
+		t.Fatalf("model filter rows=%v", m.rows)
+	}
+
 	m.filterValue = ""
 	m.showOffline = false
 	m.recomputeRows(false)
@@ -148,6 +157,13 @@ func TestFilteringAndSorting(t *testing.T) {
 	m.recomputeRows(false)
 	if m.rows[0].Hostname != "printer" || !strings.HasPrefix(m.rows[len(m.rows)-1].Hostname, "this-is-a-very-long") {
 		t.Fatalf("name sort: %v", hostnames(m.rows))
+	}
+
+	m.sortKey = SortModel
+	m.sortDesc = false
+	m.recomputeRows(false)
+	if !strings.HasPrefix(m.rows[0].Model, "A Very Long Device") {
+		t.Fatalf("model sort: %v", m.rows)
 	}
 
 	m.sortKey = SortRTT
@@ -171,7 +187,7 @@ func TestDetailAndHelpFit(t *testing.T) {
 	m.detailIP = "192.168.1.2"
 	m.showDetail = true
 	view := m.View()
-	if !strings.Contains(view, "Device details") || !strings.Contains(view, "Ports (11)") {
+	if !strings.Contains(view, "Device details") || !strings.Contains(view, "Model") || !strings.Contains(view, "Ports (11)") {
 		t.Fatalf("detail view incomplete:\n%s", view)
 	}
 	for _, line := range strings.Split(view, "\n") {

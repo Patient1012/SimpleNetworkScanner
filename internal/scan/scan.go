@@ -202,16 +202,19 @@ func (s *Scanner) Scan(ctx context.Context, progress func(Progress), found func(
 		return devices, summary, err
 	}
 
-	// Phase 4: names.
-	progress(Progress{Phase: "Resolving names", Done: 0, Total: 1})
-	names := resolveNames(ctx, s.net.Interface, s.net.Gateway, devices, 1500*time.Millisecond, s.opts.DisableMDNS, s.opts.DisableNBNS)
+	// Phase 4: names and models.
+	progress(Progress{Phase: "Resolving names and models", Done: 0, Total: 1})
+	names, models := resolveNames(ctx, s.net.Interface, s.net.Gateway, devices, 1500*time.Millisecond, s.opts.DisableMDNS, s.opts.DisableNBNS)
 	for i := range devices {
 		if c, ok := names[devices[i].IP]; ok {
 			devices[i].Hostname = c.name
 			devices[i].NameSource = c.source
 		}
+		if model := models[devices[i].IP]; model != "" {
+			devices[i].Model = model
+		}
 	}
-	progress(Progress{Phase: "Resolving names", Done: 1, Total: 1})
+	progress(Progress{Phase: "Resolving names and models", Done: 1, Total: 1})
 
 	if host, err := os.Hostname(); err == nil && devices != nil {
 		for i := range devices {

@@ -51,6 +51,10 @@ func TestMDNSParsing(t *testing.T) {
 				Header: dnsmessage.ResourceHeader{Name: instance, Type: dnsmessage.TypeSRV, Class: dnsmessage.ClassINET},
 				Body:   &dnsmessage.SRVResource{Priority: 0, Weight: 0, Port: 7000, Target: target},
 			},
+			{
+				Header: dnsmessage.ResourceHeader{Name: instance, Type: dnsmessage.TypeTXT, Class: dnsmessage.ClassINET},
+				Body:   &dnsmessage.TXTResource{TXT: []string{"model=AppleTV6,2", "srcvers=1.0"}},
+			},
 		},
 		Additionals: []dnsmessage.Resource{
 			{
@@ -73,6 +77,7 @@ func TestMDNSParsing(t *testing.T) {
 		srv:      map[string]string{},
 		instance: map[string]string{},
 		reverse:  map[netip.Addr]string{},
+		txt:      map[string]map[string]string{},
 	}
 	parseMDNS(pkt, &rec)
 	if len(rec.a) != 1 || rec.a["lrtv.local"] != netip.MustParseAddr("192.168.1.50") {
@@ -89,6 +94,11 @@ func TestMDNSParsing(t *testing.T) {
 	c, ok := results[netip.MustParseAddr("192.168.1.50")]
 	if !ok || c.name != "LivingRoomTV" || c.source != "bonjour" {
 		t.Fatalf("results: %#v", results)
+	}
+
+	models := mdnsModels(rec)
+	if got := models[netip.MustParseAddr("192.168.1.50")].model; got != "AppleTV6,2" {
+		t.Fatalf("model = %q, want AppleTV6,2", got)
 	}
 }
 

@@ -25,9 +25,19 @@ var version = "1.0.0"
 
 func main() {
 	if err := run(); err != nil {
+		clearTerminal(os.Stderr)
 		fmt.Fprintln(os.Stderr, "netscan:", err)
 		os.Exit(1)
 	}
+}
+
+// clearTerminal wipes the screen before an error is printed after the TUI has
+// stopped, so a partial or restored interface does not obscure the message.
+func clearTerminal(f *os.File) {
+	if f == nil || !isTTY(f) || os.Getenv("TERM") == "dumb" {
+		return
+	}
+	fmt.Fprint(f, "\x1b[2J\x1b[H")
 }
 
 func run() error {
@@ -144,7 +154,7 @@ func printTable(scanner *scan.Scanner, devices []scan.Device, summary scan.Summa
 
 	sort.Slice(devices, func(i, j int) bool { return devices[i].IP.Less(devices[j].IP) })
 	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "IP\tHOSTNAME\tMAC\tVENDOR\tOPEN PORTS\tRTT\tTYPE\tSTATUS")
+	fmt.Fprintln(tw, "IP\tHOSTNAME\tMAC\tVENDOR\tMODEL\tOPEN PORTS\tRTT\tTYPE\tSTATUS")
 	online := 0
 	for _, d := range devices {
 		if d.Online {
@@ -162,6 +172,10 @@ func printTable(scanner *scan.Scanner, devices []scan.Device, summary scan.Summa
 		if vendor == "" {
 			vendor = "—"
 		}
+		model := d.Model
+		if model == "" {
+			model = "—"
+		}
 		ports := formatPorts(d.Ports)
 		if ports == "" {
 			ports = "—"
@@ -170,8 +184,8 @@ func printTable(scanner *scan.Scanner, devices []scan.Device, summary scan.Summa
 		if role == "" {
 			role = "—"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			d.IP, hostname, mac, vendor, ports, rttString(d.RTT), role, statusString(d))
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			d.IP, hostname, mac, vendor, model, ports, rttString(d.RTT), role, statusString(d))
 	}
 	tw.Flush()
 
@@ -226,6 +240,7 @@ func printJSON(scanner *scan.Scanner, devices []scan.Device, summary scan.Summar
 		Hostname  string    `json:"hostname,omitempty"`
 		MAC       string    `json:"mac,omitempty"`
 		Vendor    string    `json:"vendor,omitempty"`
+		Model     string    `json:"model,omitempty"`
 		Ports     []int     `json:"ports"`
 		LatencyMS *float64  `json:"latency_ms,omitempty"`
 		Online    bool      `json:"online"`
@@ -270,6 +285,7 @@ func printJSON(scanner *scan.Scanner, devices []scan.Device, summary scan.Summar
 			Hostname:  d.Hostname,
 			MAC:       d.MAC,
 			Vendor:    d.Vendor,
+			Model:     d.Model,
 			Ports:     d.Ports,
 			Online:    d.Online,
 			Self:      d.Self,
@@ -325,6 +341,7 @@ Examples:
 Notes:
   Host discovery combines ICMP echo, TCP probes and the kernel ARP table.
   Names come from mDNS/Bonjour, NetBIOS, DHCP leases and reverse DNS.
+  Models come from UPnP/SSDP descriptions and mDNS TXT records.
   MAC vendors are resolved offline from the IEEE OUI registry.
   No root privileges are required on Linux with unprivileged ICMP enabled.
 `)

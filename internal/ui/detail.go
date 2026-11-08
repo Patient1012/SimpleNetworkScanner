@@ -54,6 +54,7 @@ func (m *Model) detailView(w, h int) string {
 	add("Hostname", hostname)
 	add("MAC address", valueOr(d.MAC, "—"))
 	add("Vendor", valueOr(d.Vendor, "Unknown"))
+	add("Model", valueOr(d.Model, "Unknown"))
 	add("Type", valueOr(scan.DescribeRole(*d), "Unknown"))
 
 	status := statusText(d)
