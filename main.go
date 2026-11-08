@@ -154,7 +154,7 @@ func printTable(scanner *scan.Scanner, devices []scan.Device, summary scan.Summa
 
 	sort.Slice(devices, func(i, j int) bool { return devices[i].IP.Less(devices[j].IP) })
 	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "IP\tHOSTNAME\tMAC\tVENDOR\tMODEL\tOPEN PORTS\tRTT\tTYPE\tSTATUS")
+	fmt.Fprintln(tw, "IP ADDRESS\tHOSTNAME\tMAC\tVENDOR\tMODEL\tOPEN PORTS\tRTT\tTYPE\tSTATUS")
 	online := 0
 	for _, d := range devices {
 		if d.Online {
