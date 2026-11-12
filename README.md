@@ -126,6 +126,3 @@ History is stored at `$XDG_STATE_HOME/netscan/history.json`, falling back to
 - The relay/proxy and VPN interfaces can make "the local subnet" ambiguous; use
   `--iface` or `--subnet` to be explicit.
 =======
-# SimpleNetworkScanner
-A simple network scanner to look at the devices on your network.
-
