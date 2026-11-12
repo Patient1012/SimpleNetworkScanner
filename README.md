@@ -60,6 +60,8 @@ netscan --ports 22,80,443,8000-8100
 
 ### Keys
 
+Netscan uses vi style keybinds.
+
 | Key | Action |
 | --- | --- |
 | `↑` / `k`, `↓` / `j` | Move selection |
