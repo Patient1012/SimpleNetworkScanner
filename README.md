@@ -1,5 +1,6 @@
-<<<<<<< HEAD
-# netscan
+## SimpleNetworkScanner
+A simple network scanner to look at the devices on your network.
+
 
 `netscan` is a terminal network scanner for Linux. It discovers every device on
 the local subnet and shows a live, sortable table with addresses, names,
@@ -127,4 +128,4 @@ History is stored at `$XDG_STATE_HOME/netscan/history.json`, falling back to
 =======
 # SimpleNetworkScanner
 A simple network scanner to look at the devices on your network.
->>>>>>> origin/main
+
