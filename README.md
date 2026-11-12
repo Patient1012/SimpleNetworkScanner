@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # netscan
 
 `netscan` is a terminal network scanner for Linux. It discovers every device on
@@ -68,6 +69,8 @@ netscan --ports 22,80,443,8000-8100
 
 ### Keys
 
+Netscan uses vi style keybinds.
+
 | Key | Action |
 | --- | --- |
 | `↑` / `k`, `↓` / `j` | Move selection |
@@ -129,3 +132,7 @@ History is stored at `$XDG_STATE_HOME/netscan/history.json`, falling back to
   a web interface usually report a model; devices with none of those show `—`.
 - The relay/proxy and VPN interfaces can make "the local subnet" ambiguous; use
   `--iface` or `--subnet` to be explicit.
+=======
+# SimpleNetworkScanner
+A simple network scanner to look at the devices on your network.
+>>>>>>> origin/main
